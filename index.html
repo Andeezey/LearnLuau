@@ -370,7 +370,7 @@ textarea.practice-input { resize: vertical; min-height: 64px; line-height: 1.5; 
 .foot-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
 .foot-btn.primary:hover { background: #963F1F; border-color: #963F1F; }
 
-.mark-done { font-family: var(--sans); font-style: italic; font-size: 14px; color: var(--ink-faint); cursor: pointer; user-select: none; }
+.mark-done { font-family: var(--sans); font-style: italic; font-size: 14px; color: var(--ink-faint); cursor: pointer; user-select: none; text-align: center; }
 .mark-done:hover { color: var(--accent); }
 .mark-done.done { color: var(--good); }
 .mark-done.done::before { content: '✓ '; font-family: var(--mono); }
@@ -1167,6 +1167,7 @@ function handlePredictCheck(qid, q, userVal) {
   state.answered[qid] = { correct, userAnswer: userVal };
   saveProgress();
   updateQuestionBlock(qid);
+  checkLessonCompletion(qid);
 }
 
 function handleChoiceCheck(qid, q, choiceIdx) {
@@ -1174,6 +1175,43 @@ function handleChoiceCheck(qid, q, choiceIdx) {
   state.answered[qid] = { correct, userAnswer: choiceIdx };
   saveProgress();
   updateQuestionBlock(qid);
+  checkLessonCompletion(qid);
+}
+
+// If every question in the lesson now has a correct saved answer, mark the lesson done.
+// Once marked done, never auto-unmark (retrying a question and getting it wrong won't undo completion).
+// Review checkpoints are skipped — only real lessons auto-complete.
+function checkLessonCompletion(qid) {
+  if (qid.indexOf('_review_') !== -1) return;
+  const lessonId = qid.split('_q')[0];
+  if (state.done[lessonId]) return; // already complete; skip
+
+  let lesson = null;
+  for (const m of CURRICULUM.modules) {
+    for (const l of m.lessons) {
+      if (l.id === lessonId) { lesson = l; break; }
+    }
+    if (lesson) break;
+  }
+  if (!lesson || !lesson.questions || lesson.questions.length === 0) return;
+
+  const allCorrect = lesson.questions.every((_, idx) => {
+    const saved = state.answered[lesson.id + '_q' + idx];
+    return saved && saved.correct;
+  });
+
+  if (allCorrect) {
+    state.done[lesson.id] = true;
+    saveProgress();
+    updateProgress();
+    renderNav();
+    // Sync the Mark as Complete button if we're currently viewing this lesson
+    const markEl = document.getElementById('markDone');
+    if (markEl) {
+      markEl.classList.add('done');
+      markEl.textContent = 'Marked as complete';
+    }
+  }
 }
 
 // Update one question's DOM block in place (no full re-render, no scroll jump).
