@@ -294,9 +294,10 @@ code.inline {
 
 .practice-code { background: var(--code-bg); color: var(--code-text); font-family: var(--mono); font-size: 14px; padding: 14px 18px; white-space: pre; overflow-x: auto; margin: 0 0 14px; border-radius: 2px; line-height: 1.55; }
 
-.practice-input { width: 100%; font-family: var(--mono); font-size: 15px; padding: 10px 14px; border: 1px solid var(--rule-strong); background: white; color: var(--ink); outline: none; transition: border-color 0.15s; }
+.practice-input { width: 100%; font-family: var(--mono); font-size: 15px; padding: 10px 14px; border: 1px solid var(--rule-strong); background: white; color: var(--ink); outline: none; transition: border-color 0.15s; box-sizing: border-box; }
 .practice-input:focus { border-color: var(--accent); }
 .practice-input.locked { background: var(--bg-deeper); cursor: not-allowed; }
+textarea.practice-input { resize: vertical; min-height: 64px; line-height: 1.5; display: block; }
 
 .practice-actions { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
 .practice-btn {
@@ -1079,8 +1080,8 @@ function renderQuestion(q, qid, totalQ, qNum) {
 
   if (q.type === 'predict') {
     const lockedAttr = saved ? ' disabled class="practice-input locked"' : ' class="practice-input"';
-    const valAttr = saved ? ' value="' + escapeHtml(saved.userAnswer || '') + '"' : '';
-    html += '<input type="text"' + lockedAttr + valAttr + ' placeholder="Type your answer and press Enter" autocomplete="off">';
+    const valText = saved ? escapeHtml(saved.userAnswer || '') : '';
+    html += '<textarea' + lockedAttr + ' rows="2" placeholder="Type your answer. Use Enter for new lines. Click Check when done." autocomplete="off" spellcheck="false">' + valText + '</textarea>';
     html += '<div class="practice-actions">';
     if (!saved) html += '<button type="button" class="practice-btn" data-action="check">Check</button>';
     else html += '<button type="button" class="practice-btn secondary" data-action="retry">Try again</button>';
@@ -1256,20 +1257,10 @@ function updateReviewScore(modId) {
 // Attach handlers to a single question block (after partial re-render).
 function attachOneQuestionHandlers(block, qid, q) {
   if (q.type === 'predict') {
-    const input = block.querySelector('input');
+    const input = block.querySelector('.practice-input');
     const checkBtn = block.querySelector('[data-action="check"]');
     const retryBtn = block.querySelector('[data-action="retry"]');
-    if (input && !input.disabled) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          handlePredictCheck(qid, q, input.value);
-        }
-      });
-      // Focus the input when the block becomes available for retry
-      // (don't auto-focus on initial load, but DO focus after Try again)
-    }
+    // No Enter-to-submit. Enter inside the textarea adds a newline. The Check button is the only submit path.
     if (checkBtn) {
       checkBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -1285,7 +1276,7 @@ function attachOneQuestionHandlers(block, qid, q) {
         // Focus the input after the retry rebuild
         const newBlock = document.querySelector('[data-qid="' + qid + '"]');
         if (newBlock) {
-          const newInput = newBlock.querySelector('input');
+          const newInput = newBlock.querySelector('.practice-input');
           if (newInput) newInput.focus();
         }
       });
